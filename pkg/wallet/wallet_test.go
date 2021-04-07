@@ -8,11 +8,7 @@ import (
 func TestService_FindAccountById_success(t *testing.T) {
 	svc := Service{}
 
-	account, err := svc.RegisterAccount("+992000000001")
-
-	if err != nil {
-		t.Error("error with registering user")
-	}
+	account, _ := svc.RegisterAccount("+992000000001")
 
 	acc, e := svc.FindAccountById(account.ID)
 
