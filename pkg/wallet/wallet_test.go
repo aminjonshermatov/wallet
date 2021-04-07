@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-func TestService_FindAccountById_success(t *testing.T) {
+func TestService_FindAccountByID_success(t *testing.T) {
 	svc := Service{}
 
 	account, _ := svc.RegisterAccount("+992000000001")
 
-	acc, e := svc.FindAccountById(account.ID)
+	acc, e := svc.FindAccountByID(account.ID)
 
 	if e != nil {
 		t.Error(e)
@@ -21,10 +21,10 @@ func TestService_FindAccountById_success(t *testing.T) {
 	}
 }
 
-func TestService_FindAccountById_notFound(t *testing.T) {
+func TestService_FindAccountByID_notFound(t *testing.T) {
 	svc := Service{}
 
-	_, e := svc.FindAccountById(123)
+	_, e := svc.FindAccountByID(123)
 
 	if e != ErrAccountNotFound {
 		t.Error(e)
