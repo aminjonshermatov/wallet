@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"errors"
+	"fmt"
 	"github.com/aminjonshermatov/wallet/pkg/types"
 	"github.com/google/uuid"
 )
@@ -16,6 +17,70 @@ type Service struct {
 	nextAccountID	int64
 	accounts		[]*types.Account
 	payments		[]*types.Payment
+}
+
+type testService struct {
+	*Service
+}
+
+type testAccount struct {
+	phone		types.Phone
+	balance		types.Money
+	payments	[]struct{
+		amount		types.Money
+		category	types.PaymentCategory
+	}
+}
+
+var defaultTestAccount = testAccount{
+	phone:		"+992000000001",
+	balance: 	10_000_00,
+	payments: 	[]struct{
+		amount		types.Money
+		category	types.PaymentCategory
+	}{
+		{amount: 1_000_00, category: "auto"},
+	},
+}
+
+func (s *testService) addAccount(data testAccount) (*types.Account, []*types.Payment, error) {
+	account, err := s.RegisterAccount(data.phone)
+	if err != nil {
+		return nil, nil, fmt.Errorf("can't regist account,  error = %v", err)
+	}
+
+	err = s.Deposit(account.ID, data.balance)
+	if err != nil {
+		return nil, nil, fmt.Errorf("can't deposity account, error = %v", err)
+	}
+
+	payments := make([]*types.Payment, len(data.payments))
+	for i, payment := range data.payments {
+		payments[i], err = s.Pay(account.ID, payment.amount, payment.category)
+		if err != nil {
+			return nil, nil, fmt.Errorf("can't make payment, error = %v", err)
+		}
+	}
+
+	return account, payments, nil
+}
+
+func newTestService() *testService {
+	return &testService{Service: &Service{}}
+}
+
+func (s *testService) addAccountWithBalance(phone types.Phone, balance types.Money) (*types.Account, error) {
+	account, err := s.RegisterAccount(phone)
+	if err != nil {
+		return nil, fmt.Errorf("can't regist account, error = %v", err)
+	}
+
+	err = s.Deposit(account.ID, balance)
+	if err != nil {
+		return nil, fmt.Errorf("can't deposit account, error = %v", err)
+	}
+
+	return account, nil
 }
 
 func (s *Service) RegisterAccount(phone types.Phone) (*types.Account, error) {
@@ -33,7 +98,6 @@ func (s *Service) RegisterAccount(phone types.Phone) (*types.Account, error) {
 	}
 
 	s.accounts = append(s.accounts, account)
-
 	return account, nil
 }
 
@@ -42,16 +106,9 @@ func (s *Service) Deposit(accountID int64, amount types.Money) error {
 		return ErrAmountMustBePositive
 	}
 
-	var account *types.Account
-
-	for _, acc := range s.accounts {
-		if acc.ID == accountID {
-			account = acc
-		}
-	}
-
-	if account == nil {
-		return ErrAccountNotFound
+	account, err := s.FindAccountByID(accountID)
+	if err != nil {
+		return err
 	}
 
 	account.Balance += amount
@@ -63,17 +120,9 @@ func (s *Service) Pay(accountID int64, amount types.Money, category types.Paymen
 		return nil, ErrAmountMustBePositive
 	}
 
-	var account *types.Account
-
-	for _, acc := range s.accounts {
-		if acc.ID == accountID {
-			account = acc
-			break
-		}
-	}
-
-	if account == nil {
-		return nil, ErrAccountNotFound
+	account, err := s.FindAccountByID(accountID)
+	if err != nil {
+		return nil, err
 	}
 
 	if account.Balance < amount {
@@ -125,27 +174,18 @@ func (s *Service) FindPaymentByID(paymentID string) (*types.Payment, error) {
 }
 
 func (s *Service) Reject(paymentID string) error {
-	var targetPayment *types.Payment
-
-	for _, payment := range s.payments {
-		if payment.ID == paymentID {
-			targetPayment = payment
-			break
-		}
+	payment, err := s.FindPaymentByID(paymentID)
+	if err != nil {
+		return err
 	}
 
-	if targetPayment == nil {
-		return ErrPaymentNotFound
+	account, err := s.FindAccountByID(payment.AccountID)
+	if err != nil {
+		return err
 	}
 
-	targetAccount, err := s.FindAccountByID(targetPayment.AccountID)
-
-	if err == ErrAccountNotFound {
-		return ErrAccountNotFound
-	}
-
-	targetAccount.Balance += targetPayment.Amount
-	targetPayment.Amount = 0
-	targetPayment.Status = types.PaymentStatusFail
+	account.Balance += payment.Amount
+	payment.Amount = 0
+	payment.Status = types.PaymentStatusFail
 	return nil
 }
