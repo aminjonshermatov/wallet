@@ -43,6 +43,10 @@ var defaultTestAccount = testAccount{
 	},
 }
 
+func newTestService() *testService {
+	return &testService{Service: &Service{}}
+}
+
 func (s *testService) addAccount(data testAccount) (*types.Account, []*types.Payment, error) {
 	account, err := s.RegisterAccount(data.phone)
 	if err != nil {
@@ -63,24 +67,6 @@ func (s *testService) addAccount(data testAccount) (*types.Account, []*types.Pay
 	}
 
 	return account, payments, nil
-}
-
-func newTestService() *testService {
-	return &testService{Service: &Service{}}
-}
-
-func (s *testService) addAccountWithBalance(phone types.Phone, balance types.Money) (*types.Account, error) {
-	account, err := s.RegisterAccount(phone)
-	if err != nil {
-		return nil, fmt.Errorf("can't regist account, error = %v", err)
-	}
-
-	err = s.Deposit(account.ID, balance)
-	if err != nil {
-		return nil, fmt.Errorf("can't deposit account, error = %v", err)
-	}
-
-	return account, nil
 }
 
 func (s *Service) RegisterAccount(phone types.Phone) (*types.Account, error) {
@@ -188,4 +174,18 @@ func (s *Service) Reject(paymentID string) error {
 	payment.Amount = 0
 	payment.Status = types.PaymentStatusFail
 	return nil
+}
+
+func (s *Service) Repeat(paymentID string) (*types.Payment, error) {
+	payment, err := s.FindPaymentByID(paymentID)
+	if err != nil {
+		return nil, err
+	}
+
+	newPayment, err := s.Pay(payment.AccountID, payment.Amount, payment.Category)
+	if err != nil {
+		return nil, err
+	}
+
+	return newPayment, nil
 }

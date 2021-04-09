@@ -110,31 +110,45 @@ func TestService_Reject_success(t *testing.T) {
 	}
 }
 
-func TestService_Reject_notRejectPaymentNotFound(t *testing.T) {
-	svc := &Service{}
-
-	phone := types.Phone("+992000000001")
-	account, err := svc.RegisterAccount(phone)
+func TestService_Reject_fail(t *testing.T) {
+	s := newTestService()
+	_, _, err := s.addAccount(defaultTestAccount)
 	if err != nil {
-		t.Errorf("Reject(): can't register account, error = %v", err)
+		t.Error(err)
 		return
 	}
 
-	err = svc.Deposit(account.ID, 10_000_00)
-	if err != nil {
-		t.Errorf("Reject(): can't deposit account error = %v", err)
-		return
-	}
-
-	_, err = svc.Pay(account.ID, 1000_00, "auto")
-	if err != nil {
-		t.Errorf("Reject(): can't create payment, error = %v", err)
-		return
-	}
-
-	err = svc.Reject("payment.ID")
+	err = s.Reject(uuid.New().String())
 	if err == nil {
-		t.Errorf("Reject(): must be err")
+		t.Error("Reject(): must be error, returned nil")
 		return
+	}
+}
+
+func TestService_Repeat_success(t *testing.T) {
+	s := newTestService()
+	_, payments, err := s.addAccount(defaultTestAccount)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	payment := payments[0]
+	newPayment, nil := s.Repeat(payment.ID)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if payment.ID == newPayment.ID {
+		t.Error("repeated payment id not different")
+		return
+	}
+
+	if payment.AccountID != newPayment.AccountID ||
+		payment.Status != newPayment.Status ||
+		payment.Category != newPayment.Category ||
+		payment.Amount != newPayment.Amount {
+		t.Error("some field is not equal the original")
 	}
 }
