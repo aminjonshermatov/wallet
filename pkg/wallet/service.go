@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"errors"
+	"fmt"
 	"github.com/aminjonshermatov/wallet/pkg/types"
 	"github.com/google/uuid"
 )
@@ -16,6 +17,7 @@ type Service struct {
 	nextAccountID	int64
 	accounts		[]*types.Account
 	payments		[]*types.Payment
+	favorites		[]*types.Favorite
 }
 
 func (s *Service) RegisterAccount(phone types.Phone) (*types.Account, error) {
@@ -137,4 +139,44 @@ func (s *Service) Repeat(paymentID string) (*types.Payment, error) {
 	}
 
 	return newPayment, nil
+}
+
+func (s *Service) FavoritePayment(paymentID string, name string) (*types.Favorite, error) {
+	payment, err := s.FindPaymentByID(paymentID)
+	if err != nil {
+		return nil, err
+	}
+
+	favorite := &types.Favorite{
+		ID:			uuid.New().String(),
+		AccountID: 	payment.AccountID,
+		Name: 		name,
+		Amount: 	payment.Amount,
+		Category: 	payment.Category,
+	}
+
+	s.favorites = append(s.favorites, favorite)
+	return favorite, nil
+}
+
+func (s *Service) PayFromFavorite(favoriteID string) (*types.Payment, error) {
+	var targetFavorite *types.Favorite
+
+	for _, favorite := range s.favorites {
+		if favorite.ID == favoriteID {
+			targetFavorite = favorite
+			break
+		}
+	}
+
+	if targetFavorite == nil {
+		return nil, fmt.Errorf("favorite payment not fuond")
+	}
+
+	payment, err := s.Pay(targetFavorite.AccountID, targetFavorite.Amount, targetFavorite.Category)
+	if err != nil {
+		return nil, err
+	}
+
+	return payment, nil
 }

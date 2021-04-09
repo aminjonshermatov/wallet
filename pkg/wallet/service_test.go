@@ -203,3 +203,61 @@ func TestService_Repeat_success(t *testing.T) {
 		t.Error("some field is not equal the original")
 	}
 }
+
+func TestService_FavoritePayment_success(t *testing.T) {
+	s := newTestService()
+	_, payments, err := s.addAccount(defaultTestAccount)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	payment := payments[0]
+
+	_, err = s.FavoritePayment(payment.ID, "osh")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_FavoritePayment_fail(t *testing.T) {
+	s := newTestService()
+
+	_, err := s.FavoritePayment(uuid.New().String(), "osh")
+	if err == nil {
+		t.Error("FavoritePayment(): must return error, now nil")
+	}
+}
+
+func TestService_PayFromFavorite_success(t *testing.T) {
+	s := newTestService()
+
+	_, payments, err := s.addAccount(defaultTestAccount)
+	if err != nil {
+		t.Error("PayFromFavorite(): can't get payments")
+		return
+	}
+
+	payment := payments[0]
+
+	favorite, err := s.FavoritePayment(payment.ID, "osh")
+	if err != nil {
+		t.Error("PayFromFavorite(): can't add payment to favorite")
+		return
+	}
+
+	_, err = s.PayFromFavorite(favorite.ID)
+	if err != nil {
+		t.Error("PayFromFavorite(): can't not pay from favorite")
+		return
+	}
+}
+
+func TestService_PayFromFavorite_fail(t *testing.T) {
+	s := newTestService()
+
+	_, err := s.PayFromFavorite(uuid.New().String())
+	if err == nil {
+		t.Error("PayFromFavorite(): must be error, now returned nil")
+	}
+}
