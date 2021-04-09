@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"errors"
-	"fmt"
 	"github.com/aminjonshermatov/wallet/pkg/types"
 	"github.com/google/uuid"
 )
@@ -12,6 +11,7 @@ var ErrAmountMustBePositive = errors.New("amount must be greater then 0")
 var ErrAccountNotFound = errors.New("account not found")
 var ErrPaymentNotFound = errors.New("payment not found")
 var ErrNotEnoughBalance = errors.New("account balance least then amount")
+var ErrFavoriteNotFound = errors.New("favorite payment not found")
 
 type Service struct {
 	nextAccountID	int64
@@ -170,7 +170,7 @@ func (s *Service) PayFromFavorite(favoriteID string) (*types.Payment, error) {
 	}
 
 	if targetFavorite == nil {
-		return nil, fmt.Errorf("favorite payment not fuond")
+		return nil, ErrFavoriteNotFound
 	}
 
 	payment, err := s.Pay(targetFavorite.AccountID, targetFavorite.Amount, targetFavorite.Category)
