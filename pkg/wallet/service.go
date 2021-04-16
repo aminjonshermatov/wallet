@@ -4,9 +4,11 @@ import (
 	"errors"
 	"github.com/aminjonshermatov/wallet/pkg/types"
 	"github.com/google/uuid"
+	"io"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
 
 var ErrPhoneRegistered = errors.New("phone already registered")
@@ -197,15 +199,13 @@ func (s *Service) ExportToFile(path string) error {
 	} ()
 
 	content := make([]byte, 0)
-	for i, account := range s.accounts {
+	for _, account := range s.accounts {
 		content = append(content, []byte(strconv.FormatInt(account.ID, 10))...)
 		content = append(content, []byte(";")...)
 		content = append(content, []byte(account.Phone)...)
 		content = append(content, []byte(";")...)
 		content = append(content, []byte(strconv.FormatInt(int64(account.Balance), 10))...)
-		if i != len(s.accounts) {
-			content = append(content, []byte("|")...)
-		}
+		content = append(content, []byte("|")...)
 	}
 
 	_, err = file.Write(content)
@@ -214,5 +214,44 @@ func (s *Service) ExportToFile(path string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (s *Service) ImportFromFile(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+	defer func() {
+		err :=file.Close()
+		if err != nil {
+			log.Print(err)
+		}
+	}()
+
+	content := make([]byte, 0)
+	buf := make([]byte, 4)
+	for {
+		read, err := file.Read(buf)
+		if err == io.EOF {
+			content = append(content, buf[:read]...)
+			break
+		}
+
+		content = append(content, buf[:read]...)
+	}
+
+	log.Print(string(content))
+	for _, row := range strings.Split(string(content), "|") {
+		col := strings.Split(row, ";")
+		if len(col) == 3 {
+			s.RegisterAccount(types.Phone(col[1]))
+		}
+	}
+
+	for _, account := range s.accounts {
+		log.Println(account)
+	}
 	return nil
 }

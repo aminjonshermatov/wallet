@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/aminjonshermatov/wallet/pkg/wallet"
 	"log"
 )
@@ -9,7 +8,7 @@ import (
 func main() {
 	svc := &wallet.Service{}
 
-	account1, err := svc.RegisterAccount("+992000000001")
+	/*account1, err := svc.RegisterAccount("+992000000001")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -43,7 +42,11 @@ func main() {
 		return
 	}
 
-	err = svc.ExportToFile("data/accounts.txt")
+	err = svc.ExportToFile("accounts.txt")
+	if err != nil {
+		log.Print(err)
+	}*/
+	err := svc.ImportFromFile("accounts.txt")
 	if err != nil {
 		log.Print(err)
 	}
