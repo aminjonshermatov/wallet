@@ -3,24 +3,48 @@ package main
 import (
 	"fmt"
 	"github.com/aminjonshermatov/wallet/pkg/wallet"
-	"github.com/google/uuid"
+	"log"
 )
 
 func main() {
 	svc := &wallet.Service{}
 
-	account, err := svc.RegisterAccount("+992000000001")
+	account1, err := svc.RegisterAccount("+992000000001")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = svc.Deposit(account.ID, 10)
+	err = svc.Deposit(account1.ID, 1_000)
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
 
-	payment, err := svc.PayFromFavorite(uuid.New().String())
-	id := payment.ID
-	fmt.Println(id)
+	account2, err := svc.RegisterAccount("+992000000002")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = svc.Deposit(account2.ID, 2_000)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	account3, err := svc.RegisterAccount("+992000000003")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = svc.Deposit(account3.ID, 3_000)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	err = svc.ExportToFile("data/accounts.txt")
+	if err != nil {
+		log.Print(err)
+	}
 }
