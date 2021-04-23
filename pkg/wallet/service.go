@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -258,28 +259,32 @@ func (s *Service) ImportFromFile(path string) error {
 }
 
 func (s *Service) Export(dir string) error {
-	if err := os.MkdirAll(dir, 0770); err != nil {
-		return err
-	}
+	//if err := os.MkdirAll(dir, 0770); err != nil {
+	//	return err
+	//}
 	err := ExportAccounts(s, dir)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 
 	err = ExportPayments(s, dir)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 
 	err = ExportFavorites(s, dir)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 
 	return nil
+}
+
+func create(p string) (*os.File, error) {
+	if err := os.MkdirAll(filepath.Dir(p), 0770); err != nil {
+		return nil, err
+	}
+	return os.Create(p)
 }
 
 func ExportAccounts(s *Service, dir string) (err error) {
@@ -287,7 +292,7 @@ func ExportAccounts(s *Service, dir string) (err error) {
 		return nil
 	}
 
-	file, err := os.Create(dir + "/" + "accounts.dump")
+	file, err := create(dir + "/" + "accounts.dump")
 	if err != nil {
 		return err
 	}
@@ -323,7 +328,7 @@ func ExportPayments(s *Service, dir string) (err error) {
 		return nil
 	}
 
-	file, err := os.Create(dir + "/" + "payments.dump")
+	file, err := create(dir + "/" + "payments.dump")
 	if err != nil {
 		return err
 	}
@@ -363,7 +368,7 @@ func ExportFavorites(s *Service, dir string) (err error) {
 		return nil
 	}
 
-	file, err := os.Create(dir + "/" + "favorites.dump")
+	file, err := create(dir + "/" + "favorites.dump")
 	if err != nil {
 		return err
 	}
@@ -399,10 +404,6 @@ func ExportFavorites(s *Service, dir string) (err error) {
 }
 
 func (s *Service) Import(dir string) error {
-	if err := os.MkdirAll(dir, 0770); err != nil {
-		return err
-	}
-
 	err := ImportAccounts(s, dir)
 	if err != nil {
 		return err
@@ -422,196 +423,192 @@ func (s *Service) Import(dir string) error {
 
 func ImportAccounts(s *Service, dir string) (err error) {
 	_, err = os.Stat(dir + "/" + "accounts.dump")
-	if err != nil && os.IsNotExist(err) {
-		log.Print(err)
-		return err
-	}
-
-	src, err := os.Open(dir + "/" + "accounts.dump")
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if cerr := src.Close(); cerr != nil {
-			if err == nil {
-				err = cerr
+	if !os.IsNotExist(err) {
+		src, err := os.Open(dir + "/" + "accounts.dump")
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if cerr := src.Close(); cerr != nil {
+				if err == nil {
+					err = cerr
+				}
 			}
-		}
-	}()
+		}()
 
-	reader := bufio.NewReader(src)
+		reader := bufio.NewReader(src)
 
-	for {
-		line, err := reader.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Print(err)
-			return err
-		}
-
-		line = strings.Replace(line, "\n", "", 1)
-		col := strings.Split(line, ";")
-		newAccount := &types.Account{
-			Phone: types.Phone(col[1]),
-		}
-		num, err := strconv.Atoi(col[0])
-		if  err != nil {
-			return err
-		}
-		newAccount.ID = int64(num)
-
-		balance, err := strconv.Atoi(col[2])
-		if err != nil {
-			return err
-		}
-		newAccount.Balance = types.Money(balance)
-
-		isFind := false
-		for _, account := range s.accounts {
-			if account.ID == newAccount.ID {
-				isFind = true
+		for {
+			line, err := reader.ReadString('\n')
+			if err == io.EOF {
 				break
 			}
-		}
+			if err != nil {
+				log.Print(err)
+				return err
+			}
 
-		if !isFind {
-			s.accounts = append(s.accounts, newAccount)
+			line = strings.Replace(line, "\n", "", 1)
+			col := strings.Split(line, ";")
+			newAccount := &types.Account{
+				Phone: types.Phone(col[1]),
+			}
+			num, err := strconv.Atoi(col[0])
+			if  err != nil {
+				return err
+			}
+			newAccount.ID = int64(num)
+
+			balance, err := strconv.Atoi(col[2])
+			if err != nil {
+				return err
+			}
+			newAccount.Balance = types.Money(balance)
+
+			isFind := false
+			for _, account := range s.accounts {
+				if account.ID == newAccount.ID {
+					isFind = true
+					break
+				}
+			}
+
+			if !isFind {
+				s.accounts = append(s.accounts, newAccount)
+			}
 		}
+		return nil
 	}
 	return nil
 }
 
 func ImportPayments(s *Service, dir string) (err error) {
 	_, err = os.Stat(dir + "/" + "payments.dump")
-	if err != nil && os.IsNotExist(err) {
-		log.Print(err)
-		return err
-	}
-
-	src, err := os.Open(dir + "/" + "payments.dump")
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if cerr := src.Close(); cerr != nil {
-			if err == nil {
-				err = cerr
-			}
-		}
-	}()
-
-	reader := bufio.NewReader(src)
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
+	if !os.IsNotExist(err) {
+		src, err := os.Open(dir + "/" + "payments.dump")
 		if err != nil {
-			log.Print(err)
 			return err
 		}
+		defer func() {
+			if cerr := src.Close(); cerr != nil {
+				if err == nil {
+					err = cerr
+				}
+			}
+		}()
 
-		line = strings.Replace(line, "\n", "", 1)
-		col := strings.Split(line, ";")
-		newPayment := &types.Payment{
-			ID: col[0],
-		}
-		num, err := strconv.Atoi(col[1])
-		if  err != nil {
-			return err
-		}
-		newPayment.AccountID = int64(num)
-		amount, err := strconv.Atoi(col[2])
-		if  err != nil {
-			return err
-		}
-		newPayment.Amount = types.Money(int64(amount))
+		reader := bufio.NewReader(src)
 
-		newPayment.Category = types.PaymentCategory(col[3])
-		newPayment.Status = types.PaymentStatus(col[4])
-
-		isFind := false
-		for _, payment := range s.payments {
-			if payment.ID == newPayment.ID {
-				isFind = true
+		for {
+			line, err := reader.ReadString('\n')
+			if err == io.EOF {
 				break
 			}
-		}
+			if err != nil {
+				log.Print(err)
+				return err
+			}
 
-		if !isFind {
-			s.payments = append(s.payments, newPayment)
+			line = strings.Replace(line, "\n", "", 1)
+			col := strings.Split(line, ";")
+			newPayment := &types.Payment{
+				ID: col[0],
+			}
+			num, err := strconv.Atoi(col[1])
+			if  err != nil {
+				return err
+			}
+			newPayment.AccountID = int64(num)
+			amount, err := strconv.Atoi(col[2])
+			if  err != nil {
+				return err
+			}
+			newPayment.Amount = types.Money(int64(amount))
+
+			newPayment.Category = types.PaymentCategory(col[3])
+			newPayment.Status = types.PaymentStatus(col[4])
+
+			isFind := false
+			for _, payment := range s.payments {
+				if payment.ID == newPayment.ID {
+					isFind = true
+					break
+				}
+			}
+
+			if !isFind {
+				s.payments = append(s.payments, newPayment)
+			}
 		}
+		return nil
 	}
+
 	return nil
 }
 
 func ImportFavorites(s *Service, dir string) (err error) {
 	_, err = os.Stat(dir + "/" + "favorites.dump")
-	if err != nil && os.IsNotExist(err) {
-		log.Print(err)
-		return err
-	}
-
-	src, err := os.Open(dir + "/" + "favorites.dump")
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if cerr := src.Close(); cerr != nil {
-			if err == nil {
-				err = cerr
-			}
-		}
-	}()
-
-	reader := bufio.NewReader(src)
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
+	if !os.IsNotExist(err) {
+		src, err := os.Open(dir + "/" + "favorites.dump")
 		if err != nil {
-			log.Print(err)
 			return err
 		}
+		defer func() {
+			if cerr := src.Close(); cerr != nil {
+				if err == nil {
+					err = cerr
+				}
+			}
+		}()
 
-		line = strings.Replace(line, "\n", "", 1)
-		col := strings.Split(line, ";")
-		newFavorite := &types.Favorite{
-			ID: col[0],
-		}
-		num, err := strconv.Atoi(col[1])
-		if  err != nil {
-			return err
-		}
-		newFavorite.AccountID = int64(num)
+		reader := bufio.NewReader(src)
 
-		newFavorite.Name = col[2]
-
-		amount, err := strconv.Atoi(col[3])
-		if  err != nil {
-			return err
-		}
-		newFavorite.Amount = types.Money(int64(amount))
-
-		newFavorite.Category = types.PaymentCategory(col[4])
-
-		isFind := false
-		for _, favorite := range s.favorites {
-			if favorite.ID == newFavorite.ID {
-				isFind = true
+		for {
+			line, err := reader.ReadString('\n')
+			if err == io.EOF {
 				break
 			}
-		}
+			if err != nil {
+				log.Print(err)
+				return err
+			}
 
-		if !isFind {
-			s.favorites = append(s.favorites, newFavorite)
+			line = strings.Replace(line, "\n", "", 1)
+			col := strings.Split(line, ";")
+			newFavorite := &types.Favorite{
+				ID: col[0],
+			}
+			num, err := strconv.Atoi(col[1])
+			if  err != nil {
+				return err
+			}
+			newFavorite.AccountID = int64(num)
+
+			newFavorite.Name = col[2]
+
+			amount, err := strconv.Atoi(col[3])
+			if  err != nil {
+				return err
+			}
+			newFavorite.Amount = types.Money(int64(amount))
+
+			newFavorite.Category = types.PaymentCategory(col[4])
+
+			isFind := false
+			for _, favorite := range s.favorites {
+				if favorite.ID == newFavorite.ID {
+					isFind = true
+					break
+				}
+			}
+
+			if !isFind {
+				s.favorites = append(s.favorites, newFavorite)
+			}
 		}
+		return nil
 	}
+
 	return nil
 }
 
