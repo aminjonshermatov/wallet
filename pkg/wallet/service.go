@@ -693,7 +693,7 @@ func (s *Service) HistoryToFiles(payments []types.Payment, dir string, records i
 		return errors.New("records must be non zero")
 	}
 	if len(payments) > 0 && len(payments) <= records {
-		return ExportToFileFrom(dir, payments, 0, len(payments), "")
+		return ExportToFileFrom(dir, payments, 0, len(payments) - 1, "")
 	} else {
 		for i := 1; i <= int(math.Ceil(float64(len(payments)) / float64(records))); i++ {
 			end := i * records - 1

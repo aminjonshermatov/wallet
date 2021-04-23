@@ -21,7 +21,7 @@ func main() {
 		return
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 9; i++ {
 		_, err := svc.Pay(account.ID, types.Money(500 + i), "foo")
 		if err != nil {
 			log.Print(err)
