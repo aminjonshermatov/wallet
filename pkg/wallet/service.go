@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"io"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -629,5 +630,82 @@ func (s *Service) Log(typeKey string) {
 			log.Print(favorite)
 		}
 		break
+	}
+}
+
+func (s *Service) ExportAccountHistory(accountID int64) ([]types.Payment, error) {
+	res := make([]types.Payment, 0)
+
+	for _, payment := range s.payments {
+		if payment.AccountID == accountID {
+			res = append(res, *payment)
+		}
+	}
+
+	if len(res) == 0 {
+		return nil, ErrAccountNotFound
+	}
+	return res, nil
+}
+
+func ExportToFileFrom(dir string, payments []types.Payment, start int, end int, idx string) error {
+	file, err := create(dir + "/" + "payments" + idx + ".dump")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			if err == nil {
+				cerr = err
+			}
+		}
+	}()
+
+	data := make([]byte, 0)
+
+	for i := start; i <= end; i++ {
+		data = append(data, []byte(payments[i].ID)...)
+		data = append(data, []byte(";")...)
+
+		data = append(data, []byte(strconv.FormatInt(payments[i].AccountID, 10))...)
+		data = append(data, []byte(";")...)
+
+		data = append(data, []byte(strconv.FormatInt(int64(payments[i].Amount), 10))...)
+		data = append(data, []byte(";")...)
+
+		data = append(data, []byte(payments[i].Category)...)
+		data = append(data, []byte(";")...)
+
+		data = append(data, []byte(payments[i].Status)...)
+		data = append(data, []byte("\n")...)
+	}
+
+	_, err = file.Write(data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) HistoryToFiles(payments []types.Payment, dir string, records int) error {
+	if records <= 0 {
+		return errors.New("records must be non zero")
+	}
+	if len(payments) > 0 && len(payments) <= records {
+		return ExportToFileFrom(dir, payments, 0, len(payments), "")
+	} else {
+		for i := 1; i <= int(math.Ceil(float64(len(payments)) / float64(records))); i++ {
+			end := i * records - 1
+			if end > len(payments) {
+				end = len(payments) - 1
+			}
+			err := ExportToFileFrom(dir, payments, records * (i - 1), end, strconv.FormatInt(int64(i), 10))
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 }
