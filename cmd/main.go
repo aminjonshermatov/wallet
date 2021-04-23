@@ -35,12 +35,12 @@ func main() {
 		}
 	}
 
-	//err := svc.Export("data/c258dee9-e7be-4a19-909e-a7d883c166a7")
-	//if err != nil {
-	//	log.Print(err)
-	//	return
-	//}
-	err := svc.Import("data/c258dee9-e7be-4a19-909e-a7d883c166a7")
+	err := svc.Export("data/c258dee9-e7be-4a19-909e-a7d883c166a7")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	err = svc.Import("data/c258dee9-e7be-4a19-909e-a7d883c166a7")
 	if err != nil {
 		log.Print(err)
 		return
