@@ -10,7 +10,7 @@ func main() {
 	svc := &wallet.Service{}
 
 	for i := 0; i < 5; i++ {
-		account, err := svc.RegisterAccount("+99200000000" + types.Phone(i))
+		account, err := svc.RegisterAccount("+99200000000" + types.Phone(rune(i)))
 		if err != nil {
 			log.Print(err)
 			break
