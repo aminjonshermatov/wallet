@@ -261,3 +261,34 @@ func TestService_PayFromFavorite_fail(t *testing.T) {
 		t.Error("PayFromFavorite(): must be error, now returned nil")
 	}
 }
+
+func BenchmarkService_SumPayments(b *testing.B) {
+	s := newTestService()
+	account, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		b.Fatal(err)
+		return
+	}
+
+	err = s.Deposit(account.ID, types.Money(100_000))
+	if err != nil {
+		b.Fatal(err)
+		return
+	}
+
+	for i := 0; i < 7; i++ {
+		_, err := s.Pay(account.ID, types.Money(1 + i), "foo")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	want := types.Money(28)
+
+	for i := 0; i < b.N; i++ {
+		result := s.SumPayments(i)
+		if result != want {
+			b.Fatalf("invalid result, got %v, want %v", result, want)
+		}
+	}
+}
