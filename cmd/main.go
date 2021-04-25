@@ -21,20 +21,24 @@ func main() {
 		return
 	}
 
-	for i := 0; i < 9; i++ {
-		_, err := svc.Pay(account.ID, types.Money(500 + i), "foo")
+	for i := 0; i < 7; i++ {
+		_, err := svc.Pay(account.ID, types.Money(1 + i), "foo")
 		if err != nil {
 			log.Print(err)
 			break
 		}
 	}
 
-	payments, err := svc.ExportAccountHistory(account.ID)
-	if err != nil {
-		log.Print(err)
-		return
-	}
+	//svc.Log("payments")
 
-	log.Print(len(payments))
-	err = svc.HistoryToFiles(payments, "data", 3)
+	log.Print(svc.SumPayments(5))
+
+	//payments, err := svc.ExportAccountHistory(account.ID)
+	//if err != nil {
+	//	log.Print(err)
+	//	return
+	//}
+	//
+	//log.Print(len(payments))
+	//err = svc.HistoryToFiles(payments, "data", 3)
 }

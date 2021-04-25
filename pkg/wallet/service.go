@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var ErrPhoneRegistered = errors.New("phone already registered")
@@ -708,4 +709,46 @@ func (s *Service) HistoryToFiles(payments []types.Payment, dir string, records i
 
 		return nil
 	}
+}
+
+func (s *Service) SumPayments(goroutines int) types.Money {
+	wg := sync.WaitGroup{}
+	if goroutines == 0 {
+		goroutines = 1
+	}
+	wg.Add(goroutines)
+
+	mu := sync.Mutex{}
+	sum := types.Money(0)
+
+	lenPayments := len(s.payments)
+	for i := 0; i < goroutines; i++ {
+		remainder := 0
+		if lenPayments % goroutines != 0 {
+			remainder = 1
+		}
+
+		start := i * lenPayments / goroutines + remainder
+		if i == 0 {
+			start = 0
+		}
+		end := (i + 1) * lenPayments / goroutines + remainder
+		if end > lenPayments {
+			end = lenPayments
+		}
+
+		go func(partPayments []*types.Payment) {
+			sumPart := types.Money(0)
+			defer wg.Done()
+			for _, payment := range partPayments {
+				sumPart += payment.Amount
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			sum += sumPart
+		}(s.payments[start:end])
+	}
+
+	wg.Wait()
+	return sum
 }
