@@ -659,7 +659,7 @@ func BenchmarkService_SumPayments(b *testing.B) {
 	}
 }
 
-func BenchmarkService_FilterPayments(b *testing.B) {
+func BenchmarkService_FilterPayments_success(b *testing.B) {
 	s := newTestService()
 
 	account1, err := s.RegisterAccount("+992000000000")
@@ -711,6 +711,18 @@ func BenchmarkService_FilterPayments(b *testing.B) {
 		})
 		if !reflect.DeepEqual(wantPayments, payments) {
 			b.Fatalf("payments is not equal, got %v, want %v", payments, wantPayments)
+		}
+	}
+
+}
+
+func BenchmarkService_FilterPayments_invalidID(b *testing.B) {
+	s := newTestService()
+
+	for i := 0; i < b.N; i++ {
+		_, err := s.FilterPayments(213456789, i)
+		if err == nil {
+			b.Fatal("result must be error, because invalid accountID")
 		}
 	}
 

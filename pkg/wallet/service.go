@@ -696,6 +696,11 @@ func (s *Service) SumPayments(goroutines int) types.Money {
 }
 
 func (s *Service) FilterPayments(accountID int64, goroutines int) ([]types.Payment, error) {
+	_, err := s.FindAccountByID(accountID)
+	if err != nil {
+		return nil, err
+	}
+
 	wg := sync.WaitGroup{}
 	if goroutines == 0 {
 		goroutines = 1
