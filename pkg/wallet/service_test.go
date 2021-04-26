@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -656,4 +657,61 @@ func BenchmarkService_SumPayments(b *testing.B) {
 			b.Fatalf("invalid result, got %v, want %v", result, want)
 		}
 	}
+}
+
+func BenchmarkService_FilterPayments(b *testing.B) {
+	s := newTestService()
+
+	account1, err := s.RegisterAccount("+992000000000")
+	if err != nil {
+		b.Fatal(err)
+	}
+	err = s.Deposit(account1.ID, 100_000)
+	if err != nil {
+		b.Fatal(err)
+	}
+	wantPayments := make([]types.Payment, 0)
+	payment1Acc1, err := s.Pay(account1.ID, 1_000, "goo")
+	if err != nil {
+		b.Fatal(err)
+	}
+	payment2Acc1, err := s.Pay(account1.ID, 2_000, "goo")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	wantPayments = append(wantPayments, *payment1Acc1)
+	wantPayments = append(wantPayments, *payment2Acc1)
+
+	account2, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		b.Fatal(err)
+	}
+	err = s.Deposit(account2.ID, 100_000)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	_, err = s.Pay(account2.ID, 1_000, "goo")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		payments, err := s.FilterPayments(account1.ID, i)
+		if err != nil {
+			b.Fatal(err)
+		}
+		sort.Slice(payments, func(i, j int) bool {
+			return payments[i].ID < payments[j].ID
+		})
+
+		sort.Slice(wantPayments, func(i, j int) bool {
+			return wantPayments[i].ID < wantPayments[j].ID
+		})
+		if !reflect.DeepEqual(wantPayments, payments) {
+			b.Fatalf("payments is not equal, got %v, want %v", payments, wantPayments)
+		}
+	}
+
 }
