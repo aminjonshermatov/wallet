@@ -6,7 +6,6 @@ import (
 	"github.com/aminjonshermatov/wallet/pkg/types"
 	"github.com/google/uuid"
 	"io"
-	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -196,25 +195,23 @@ func (s *Service) ExportToFile(path string) error {
 		return err
 	}
 	defer func() {
-		err := file.Close()
-		if err != nil {
-			log.Print(err)
+		cerr := file.Close()
+		if cerr != nil {
+			if err == nil {
+				err = cerr
+			}
 		}
 	} ()
 
 	content := make([]byte, 0)
 	for _, account := range s.accounts {
-		content = append(content, []byte(strconv.FormatInt(account.ID, 10))...)
-		content = append(content, []byte(";")...)
-		content = append(content, []byte(account.Phone)...)
-		content = append(content, []byte(";")...)
-		content = append(content, []byte(strconv.FormatInt(int64(account.Balance), 10))...)
-		content = append(content, []byte("|")...)
+		content = append(content, []byte(strconv.FormatInt(account.ID, 10) + ";")...)
+		content = append(content, []byte(account.Phone + ";")...)
+		content = append(content, []byte(strconv.FormatInt(int64(account.Balance), 10) + "|")...)
 	}
 
 	_, err = file.Write(content)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 
@@ -224,13 +221,14 @@ func (s *Service) ExportToFile(path string) error {
 func (s *Service) ImportFromFile(path string) error {
 	file, err := os.Open(path)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 	defer func() {
-		err :=file.Close()
-		if err != nil {
-			log.Print(err)
+		cerr :=file.Close()
+		if cerr != nil {
+			if err == nil {
+				err = cerr
+			}
 		}
 	}()
 
@@ -246,24 +244,27 @@ func (s *Service) ImportFromFile(path string) error {
 		content = append(content, buf[:read]...)
 	}
 
-	log.Print(string(content))
 	for _, row := range strings.Split(string(content), "|") {
 		col := strings.Split(row, ";")
 		if len(col) == 3 {
-			s.RegisterAccount(types.Phone(col[1]))
+			_, err = s.RegisterAccount(types.Phone(col[1]))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
-	for _, account := range s.accounts {
-		log.Println(account)
-	}
 	return nil
 }
 
+func create(p string) (*os.File, error) {
+	if err := os.MkdirAll(filepath.Dir(p), 0770); err != nil {
+		return nil, err
+	}
+	return os.Create(p)
+}
+
 func (s *Service) Export(dir string) error {
-	//if err := os.MkdirAll(dir, 0770); err != nil {
-	//	return err
-	//}
 	err := ExportAccounts(s, dir)
 	if err != nil {
 		return err
@@ -280,13 +281,6 @@ func (s *Service) Export(dir string) error {
 	}
 
 	return nil
-}
-
-func create(p string) (*os.File, error) {
-	if err := os.MkdirAll(filepath.Dir(p), 0770); err != nil {
-		return nil, err
-	}
-	return os.Create(p)
 }
 
 func ExportAccounts(s *Service, dir string) (err error) {
@@ -309,22 +303,17 @@ func ExportAccounts(s *Service, dir string) (err error) {
 
 	for _, account := range s.accounts {
 
-		data = append(data, []byte(strconv.FormatInt(account.ID, 10))...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(account.Phone)...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(strconv.FormatInt(int64(account.Balance), 10))...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte(strconv.FormatInt(account.ID, 10) + ";")...)
+		data = append(data, []byte(account.Phone + ";")...)
+		data = append(data, []byte(strconv.FormatInt(int64(account.Balance), 10) + "\n")...)
 	}
 
 	_, err = file.Write(data)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 	return nil
 }
-
 func ExportPayments(s *Service, dir string) (err error) {
 	if len(s.payments) == 0 {
 		return nil
@@ -345,26 +334,19 @@ func ExportPayments(s *Service, dir string) (err error) {
 
 	for _, payment := range s.payments {
 
-		data = append(data, []byte(payment.ID)...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(strconv.FormatInt(payment.AccountID, 10))...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(strconv.FormatInt(int64(payment.Amount), 10))...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(payment.Category)...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(payment.Status)...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte(payment.ID + ";")...)
+		data = append(data, []byte(strconv.FormatInt(payment.AccountID, 10) + ";")...)
+		data = append(data, []byte(strconv.FormatInt(int64(payment.Amount), 10) + ";")...)
+		data = append(data, []byte(payment.Category + ";")...)
+		data = append(data, []byte(payment.Status + "\n")...)
 	}
 
 	_, err = file.Write(data)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 	return nil
 }
-
 func ExportFavorites(s *Service, dir string) (err error) {
 	if len(s.favorites) == 0 {
 		return nil
@@ -385,21 +367,15 @@ func ExportFavorites(s *Service, dir string) (err error) {
 
 	for _, favorite := range s.favorites {
 
-		data = append(data, []byte(favorite.ID)...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(strconv.FormatInt(favorite.AccountID, 10))...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(favorite.Name)...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(strconv.FormatInt(int64(favorite.Amount), 10))...)
-		data = append(data, []byte(";")...)
-		data = append(data, []byte(favorite.Category)...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte(favorite.ID + ";")...)
+		data = append(data, []byte(strconv.FormatInt(favorite.AccountID, 10) + ";")...)
+		data = append(data, []byte(favorite.Name + ";")...)
+		data = append(data, []byte(strconv.FormatInt(int64(favorite.Amount), 10) + ";")...)
+		data = append(data, []byte(favorite.Category + "\n")...)
 	}
 
 	_, err = file.Write(data)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 	return nil
@@ -446,7 +422,6 @@ func ImportAccounts(s *Service, dir string) (err error) {
 				break
 			}
 			if err != nil {
-				log.Print(err)
 				return err
 			}
 
@@ -483,7 +458,6 @@ func ImportAccounts(s *Service, dir string) (err error) {
 	}
 	return nil
 }
-
 func ImportPayments(s *Service, dir string) (err error) {
 	_, err = os.Stat(dir + "/" + "payments.dump")
 	if !os.IsNotExist(err) {
@@ -507,7 +481,6 @@ func ImportPayments(s *Service, dir string) (err error) {
 				break
 			}
 			if err != nil {
-				log.Print(err)
 				return err
 			}
 
@@ -547,7 +520,6 @@ func ImportPayments(s *Service, dir string) (err error) {
 
 	return nil
 }
-
 func ImportFavorites(s *Service, dir string) (err error) {
 	_, err = os.Stat(dir + "/" + "favorites.dump")
 	if !os.IsNotExist(err) {
@@ -571,7 +543,6 @@ func ImportFavorites(s *Service, dir string) (err error) {
 				break
 			}
 			if err != nil {
-				log.Print(err)
 				return err
 			}
 
@@ -614,26 +585,6 @@ func ImportFavorites(s *Service, dir string) (err error) {
 	return nil
 }
 
-func (s *Service) Log(typeKey string) {
-	switch typeKey {
-	case "accounts":
-		for _, account := range s.accounts {
-			log.Print(account)
-		}
-		break
-	case "payments":
-		for _, payment := range s.payments {
-			log.Print(payment)
-		}
-		break
-	case "favorites":
-		for _, favorite := range s.favorites {
-			log.Print(favorite)
-		}
-		break
-	}
-}
-
 func (s *Service) ExportAccountHistory(accountID int64) ([]types.Payment, error) {
 	res := make([]types.Payment, 0)
 
@@ -665,20 +616,11 @@ func ExportToFileFrom(dir string, payments []types.Payment, start int, end int, 
 	data := make([]byte, 0)
 
 	for i := start; i <= end; i++ {
-		data = append(data, []byte(payments[i].ID)...)
-		data = append(data, []byte(";")...)
-
-		data = append(data, []byte(strconv.FormatInt(payments[i].AccountID, 10))...)
-		data = append(data, []byte(";")...)
-
-		data = append(data, []byte(strconv.FormatInt(int64(payments[i].Amount), 10))...)
-		data = append(data, []byte(";")...)
-
-		data = append(data, []byte(payments[i].Category)...)
-		data = append(data, []byte(";")...)
-
-		data = append(data, []byte(payments[i].Status)...)
-		data = append(data, []byte("\n")...)
+		data = append(data, []byte(payments[i].ID + ";")...)
+		data = append(data, []byte(strconv.FormatInt(payments[i].AccountID, 10) + ";")...)
+		data = append(data, []byte(strconv.FormatInt(int64(payments[i].Amount), 10) + ";")...)
+		data = append(data, []byte(payments[i].Category + ";")...)
+		data = append(data, []byte(payments[i].Status + "\n")...)
 	}
 
 	_, err = file.Write(data)
@@ -698,7 +640,7 @@ func (s *Service) HistoryToFiles(payments []types.Payment, dir string, records i
 	} else {
 		for i := 1; i <= int(math.Ceil(float64(len(payments)) / float64(records))); i++ {
 			end := i * records - 1
-			if end > len(payments) {
+			if end >= len(payments) {
 				end = len(payments) - 1
 			}
 			err := ExportToFileFrom(dir, payments, records * (i - 1), end, strconv.FormatInt(int64(i), 10))

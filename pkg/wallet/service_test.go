@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aminjonshermatov/wallet/pkg/types"
 	"github.com/google/uuid"
+	"log"
 	"reflect"
 	"testing"
 )
@@ -259,6 +260,370 @@ func TestService_PayFromFavorite_fail(t *testing.T) {
 	_, err := s.PayFromFavorite(uuid.New().String())
 	if err == nil {
 		t.Error("PayFromFavorite(): must be error, now returned nil")
+	}
+}
+
+func TestService_ExportToFile_success(t *testing.T) {
+	s := newTestService()
+
+	_, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	path := "export.txt"
+	err = s.ExportToFile(path)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_ExportToFile_fail(t *testing.T) {
+	s := newTestService()
+
+	_, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	path := "data/export.txt"
+	err = s.ExportToFile(path)
+	if err == nil {
+		t.Error(err)
+	}
+}
+
+func TestService_ImportFromFile_success(t *testing.T) {
+	s := newTestService()
+
+	_, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	path := "export.txt"
+	err = s.ExportToFile(path)
+	if err != nil {
+		t.Error(err)
+	}
+
+	s.accounts = s.accounts[:0]
+	err = s.ImportFromFile(path)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_ImportFromFile_fail(t *testing.T) {
+	s := newTestService()
+
+	_, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	path := "export.txt"
+	err = s.ExportToFile(path)
+	if err != nil {
+		t.Error(err)
+	}
+
+	s.accounts = s.accounts[:0]
+	err = s.ImportFromFile("data/" + path)
+	if err == nil {
+		t.Error(err)
+	}
+}
+
+func TestService_Export_regular(t *testing.T) {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Deposit(account.ID, types.Money(100_000))
+	if err != nil {
+		t.Error(err)
+	}
+
+	payment, err := s.Pay(account.ID, types.Money(1_000), "foo")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = s.FavoritePayment(payment.ID, "FOO")
+	if err != nil {
+		t.Error(err)
+	}
+
+	path := "data"
+
+	err = s.Export(path)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_Export_emptySlices(t *testing.T) {
+	s := newTestService()
+
+	path := "data"
+
+	err := s.Export(path)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_Import_regular(t *testing.T) {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Deposit(account.ID, types.Money(100_000))
+	if err != nil {
+		t.Error(err)
+	}
+
+	payment, err := s.Pay(account.ID, types.Money(1_000), "foo")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = s.FavoritePayment(payment.ID, "FOO")
+	if err != nil {
+		t.Error(err)
+	}
+
+	path := "data"
+
+	err = s.Export(path)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Import(path)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_Import_clearAfterExport(t *testing.T) {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Deposit(account.ID, types.Money(100_000))
+	if err != nil {
+		t.Error(err)
+	}
+
+	payment, err := s.Pay(account.ID, types.Money(1_000), "foo")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = s.FavoritePayment(payment.ID, "FOO")
+	if err != nil {
+		t.Error(err)
+	}
+
+	path := "data"
+
+	err = s.Export(path)
+	if err != nil {
+		t.Error(err)
+	}
+
+	s.accounts = s.accounts[:0]
+	s.payments = s.payments[:0]
+	s.favorites = s.favorites[:0]
+
+	err = s.Import(path)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_Import_emptySlices(t *testing.T) {
+	s := newTestService()
+
+	path := "data"
+
+	err := s.Export(path)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Import(path)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_ExportAccountHistory_success(t *testing.T)  {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Deposit(account.ID, types.Money(100_000))
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; i < 7; i++ {
+		_, err := s.Pay(account.ID, types.Money(1 + i), "foo")
+		if err != nil {
+			t.Error(err)
+			break
+		}
+	}
+
+	payments, err := s.ExportAccountHistory(account.ID)
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; i < len(s.payments); i++ {
+		if *s.payments[i] != payments[i] {
+			t.Errorf("payments is not matches, got %v, want %v", payments, s.payments)
+		}
+	}
+}
+
+func TestService_ExportAccountHistory_fail(t *testing.T)  {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = s.Deposit(account.ID, types.Money(100_000))
+	if err != nil {
+		t.Error(err)
+	}
+
+	payments, err := s.ExportAccountHistory(321)
+	if err == nil {
+		t.Error(err)
+	}
+
+	for i := 0; i < len(s.payments); i++ {
+		if *s.payments[i] == payments[i] {
+			t.Errorf("payments is not matches, got %v, want %v", payments, s.payments)
+		}
+	}
+}
+
+func TestService_HistoryToFiles_noData(t *testing.T) {
+	s := newTestService()
+
+	payments := make([]types.Payment, 0)
+
+	for _, payment := range s.payments {
+		payments = append(payments, *payment)
+	}
+
+	err := s.HistoryToFiles(payments, "data", 3)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_HistoryToFiles_negativeRecords(t *testing.T) {
+	s := newTestService()
+
+	payments := make([]types.Payment, 0)
+
+	for _, payment := range s.payments {
+		payments = append(payments, *payment)
+	}
+
+	err := s.HistoryToFiles(payments, "data", -3)
+	if err == nil {
+		t.Error(err)
+	}
+}
+
+func TestService_HistoryToFiles_OneFile(t *testing.T) {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	err = s.Deposit(account.ID, types.Money(100_000))
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	for i := 0; i < 7; i++ {
+		_, err := s.Pay(account.ID, types.Money(1 + i), "foo")
+		if err != nil {
+			log.Print(err)
+			break
+		}
+	}
+
+	payments := make([]types.Payment, 0)
+
+	for _, payment := range s.payments {
+		payments = append(payments, *payment)
+	}
+
+	err = s.HistoryToFiles(payments, "data", 8)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestService_HistoryToFiles_multiFile(t *testing.T) {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+992000000001")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	err = s.Deposit(account.ID, types.Money(100_000))
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	for i := 0; i < 7; i++ {
+		_, err := s.Pay(account.ID, types.Money(1 + i), "foo")
+		if err != nil {
+			t.Error(err)
+			break
+		}
+	}
+
+	payments := make([]types.Payment, 0)
+
+	for _, payment := range s.payments {
+		payments = append(payments, *payment)
+	}
+
+	err = s.HistoryToFiles(payments, "data", 3)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
