@@ -727,3 +727,55 @@ func BenchmarkService_FilterPayments_invalidID(b *testing.B) {
 	}
 
 }
+
+func filter(payment types.Payment) bool {
+	return payment.Amount <= 540
+}
+
+func BenchmarkService_FilterPaymentsByFn(b *testing.B) {
+	s := newTestService()
+
+	account, err := s.RegisterAccount("+992000000000")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	err = s.Deposit(account.ID, 100_000)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < 7; i++ {
+		_, err = s.Pay(account.ID, types.Money(i * 10 + 500), "foo")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	wantPayments := make([]types.Payment, 0)
+
+	for _, payment := range s.payments {
+		if filter(*payment) {
+			wantPayments = append(wantPayments, *payment)
+		}
+	}
+
+	for i := 0; i < b.N; i++ {
+		result, err := s.FilterPaymentsByFn(filter, i)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		sort.Slice(wantPayments, func (i, j int) bool {
+			return wantPayments[i].ID < wantPayments[j].ID
+		})
+
+		sort.Slice(result, func (i, j int) bool {
+			return result[i].ID < result[j].ID
+		})
+
+		if !reflect.DeepEqual(wantPayments, result) {
+			b.Fatalf("invalid result, want %v, got %v", wantPayments, result)
+		}
+	}
+}
