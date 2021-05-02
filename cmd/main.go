@@ -15,14 +15,14 @@ func main() {
 		return
 	}
 
-	err = svc.Deposit(account.ID, types.Money(100_000))
+	err = svc.Deposit(account.ID, types.Money(9_000_000))
 	if err != nil {
 		log.Print(err)
 		return
 	}
 
-	for i := 0; i < 7; i++ {
-		_, err := svc.Pay(account.ID, types.Money(1 + i), "foo")
+	for i := 0; i < 9_000_000; i++ {
+		_, err := svc.Pay(account.ID, types.Money(1), "foo")
 		if err != nil {
 			log.Print(err)
 			break
@@ -31,7 +31,14 @@ func main() {
 
 	//svc.Log("payments")
 
-	log.Print(svc.SumPayments(5))
+	ch := svc.SumPaymentsWithProgress()
+	result := types.Money(0)
+	for val := range ch {
+		result += val.Result
+		log.Printf("part: %d, result: %v", val.Part, val.Result)
+	}
+
+	log.Printf("done, sum: %v", result)
 
 	//payments, err := svc.ExportAccountHistory(account.ID)
 	//if err != nil {
